@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>dev.llmlint.springai</id>
     <name>LLM Lint for Spring AI</name>
-    <vendor>LLM Lint</vendor>
+    <vendor email="[E-POSTA]" url="[WEB ADRESİ]">LLM Lint</vendor>
 
     <description><![CDATA[
     Static analysis for <b>Spring AI 2.x</b> code: catches LLM cost and reliability mistakes
@@ -9,13 +9,24 @@
     <ul>
       <li><b>Missing output limit</b> &ndash; a <code>ChatClient</code> call without a max-tokens limit
           in <code>.options(...)</code>, <code>ChatClient.Builder.defaultOptions(...)</code>
-          or <code>spring.ai.&lt;provider&gt;.chat.options.max-tokens</code>.</li>
+          or <code>spring.ai.&lt;provider&gt;.chat.options.max-tokens</code>.
+          Calls that can only run on a provider with a documented default limit (Anthropic: 4096 tokens)
+          are not reported; an option can show them as weak warnings.</li>
       <li><b>Unbounded chat memory</b> &ndash; session memory (<code>SessionMemoryAdvisor</code>,
           <code>SessionAdvisors</code>) without <code>EventFilter.lastN(...)</code> or compaction, and
           <code>MessageWindowChatMemory</code> with a huge <code>maxMessages</code>.</li>
     </ul>
     Works for Java and Kotlin.
     ]]></description>
+
+    <change-notes><![CDATA[
+    <b>0.1.0</b>
+    <ul>
+      <li>First version: <i>Missing output limit</i> and <i>Unbounded chat memory</i> inspections for Spring AI 2.x,
+          Java and Kotlin.</li>
+      <li>Provider default output limits (Anthropic: 4096 tokens) are taken into account.</li>
+    </ul>
+    ]]></change-notes>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.java</depends>

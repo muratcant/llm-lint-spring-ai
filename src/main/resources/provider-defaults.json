@@ -1,0 +1,59 @@
+{
+  "_comment": "Default output token limit each Spring AI chat provider applies when the code and the config set none. Only values confirmed in the official Spring AI reference documentation go here; unknown or 'no limit' is null. Checked against the Spring AI 2.1.0 docs and sources on 2026-11-24.",
+  "providers": [
+    {
+      "provider": "Anthropic",
+      "chatModelClass": "org.springframework.ai.anthropic.AnthropicChatModel",
+      "defaultMaxTokens": 4096,
+      "property": "spring.ai.anthropic.chat.max-tokens",
+      "source": "https://docs.spring.io/spring-ai/reference/api/chat/anthropic-chat.html",
+      "verifiedFor": "2.1.0",
+      "note": "AnthropicChatOptions.DEFAULT_MAX_TOKENS: applied even when the model is built in code."
+    },
+    {
+      "provider": "OpenAI",
+      "chatModelClass": "org.springframework.ai.openai.OpenAiChatModel",
+      "defaultMaxTokens": null,
+      "property": "spring.ai.openai.chat.max-tokens",
+      "source": "https://docs.spring.io/spring-ai/reference/api/chat/openai-chat.html",
+      "verifiedFor": "2.1.0",
+      "note": "No default for max-tokens or max-completion-tokens in the docs."
+    },
+    {
+      "provider": "Azure OpenAI",
+      "chatModelClass": "org.springframework.ai.openai.OpenAiChatModel",
+      "defaultMaxTokens": null,
+      "property": "spring.ai.openai.chat.max-tokens",
+      "source": "https://docs.spring.io/spring-ai/reference/api/chat/azure-openai-chat.html",
+      "verifiedFor": "2.1.0",
+      "note": "Since 2.0.0-M5 Azure models are used through OpenAI Chat (OpenAiChatModel); there is no separate Azure chat model or default."
+    },
+    {
+      "provider": "Google GenAI",
+      "chatModelClass": "org.springframework.ai.google.genai.GoogleGenAiChatModel",
+      "defaultMaxTokens": null,
+      "property": "spring.ai.google.genai.chat.max-output-tokens",
+      "source": "https://docs.spring.io/spring-ai/reference/api/chat/google-genai-chat.html",
+      "verifiedFor": "2.1.0",
+      "note": "No default in the docs."
+    },
+    {
+      "provider": "Ollama",
+      "chatModelClass": "org.springframework.ai.ollama.OllamaChatModel",
+      "defaultMaxTokens": null,
+      "property": "spring.ai.ollama.chat.num-predict",
+      "source": "https://docs.spring.io/spring-ai/reference/api/chat/ollama-chat.html",
+      "verifiedFor": "2.1.0",
+      "note": "Documented default is -1, which means infinite generation: no limit."
+    },
+    {
+      "provider": "Amazon Bedrock",
+      "chatModelClass": "org.springframework.ai.bedrock.converse.BedrockProxyChatModel",
+      "defaultMaxTokens": null,
+      "property": "spring.ai.bedrock.converse.chat.max-tokens",
+      "source": "https://docs.spring.io/spring-ai/reference/api/chat/bedrock-converse.html",
+      "verifiedFor": "2.1.0",
+      "note": "The docs list 500, but the 2.1.0 sources set no value (BedrockConverseProxyChatProperties and BedrockChatOptions keep maxTokens null), so it is not counted as a limit."
+    }
+  ]
+}

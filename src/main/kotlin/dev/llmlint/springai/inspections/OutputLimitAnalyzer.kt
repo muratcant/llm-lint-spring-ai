@@ -2,6 +2,8 @@ package dev.llmlint.springai.inspections
 
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
+import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiPrimitiveType
@@ -40,6 +42,13 @@ enum class Limit {
 class OutputLimitAnalyzer(private val project: Project) {
 
     private val visited = HashSet<PsiElement>()
+
+    /**
+     * Concrete ChatModel classes the client is built from, when the code shows them (a parameter of type
+     * AnthropicChatModel, `OllamaChatModel.builder()...build()`, ...). Empty when only the ChatModel interface
+     * or an auto-configured builder is visible.
+     */
+    val modelClasses: MutableSet<PsiClass> = LinkedHashSet()
 
     /**
      * [specExpression] is the receiver of `.call()` / `.stream()`, i.e. an expression of type
@@ -92,6 +101,7 @@ class OutputLimitAnalyzer(private val project: Project) {
                     result = Limit.SET
                     return true
                 }
+                recordModel(node.returnType)
                 val method = node.resolve()
                 if (method != null && UastFlow.isProjectSource(project, method) && isCarrier(node.returnType)) {
                     result = result or methodResult(method, depth + 1)
@@ -123,11 +133,22 @@ class OutputLimitAnalyzer(private val project: Project) {
             .fold(Limit.NOT_SET) { acc, value -> acc or scan(value, depth) }
     }
 
+    private fun recordModel(type: PsiType?) {
+        val modelClass = (type as? PsiClassType)?.resolve() ?: return
+        if (modelClass.qualifiedName != SpringAiNames.CHAT_MODEL &&
+            InheritanceUtil.isInheritor(modelClass, SpringAiNames.CHAT_MODEL)
+        ) {
+            modelClasses += modelClass
+        }
+    }
+
     private fun byType(type: PsiType, depth: Int): Limit = when {
         type is PsiPrimitiveType -> Limit.NOT_SET
         // Spring Boot auto-configures these from spring.ai.* properties unless the project defines its own bean.
-        InheritanceUtil.isInheritor(type, SpringAiNames.CHAT_MODEL) ->
+        InheritanceUtil.isInheritor(type, SpringAiNames.CHAT_MODEL) -> {
+            recordModel(type)
             beansOf(SpringAiNames.CHAT_MODEL, depth) ?: Limit.NOT_SET
+        }
         InheritanceUtil.isInheritor(type, SpringAiNames.CHAT_CLIENT_BUILDER) ->
             beansOf(SpringAiNames.CHAT_CLIENT_BUILDER, depth) ?: Limit.NOT_SET
         // Spring AI does not auto-configure a ChatClient: a bean we can't see means we can't tell.

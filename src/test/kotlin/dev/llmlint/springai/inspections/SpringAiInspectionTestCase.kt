@@ -33,13 +33,31 @@ abstract class SpringAiInspectionTestCase : BasePlatformTestCase() {
         PsiManagerEx.getInstanceEx(project).setAssertOnFileLoadingFilter(VirtualFileFilter.NONE, testRootDisposable)
         (myFixture as CodeInsightTestFixtureImpl).setVirtualFileFilter(null)
         myFixture.copyDirectoryToProject("stubs", "")
+        providerStubs.forEach(::addProviderStubs)
         // All inspections are on in every test, so each test also proves the others stay silent.
         myFixture.enableInspections(MissingOutputLimitInspection(), UnboundedChatMemoryInspection())
+    }
+
+    /**
+     * Provider stub directories (src/test/testData/stubs-<name>) copied for every test. OpenAI by default,
+     * so tests see the same classpath as before provider defaults existed.
+     */
+    protected open val providerStubs: List<String> = listOf("openai")
+
+    /** Puts a provider's ChatModel/ChatOptions stubs on the test project's classpath. */
+    protected fun addProviderStubs(provider: String) {
+        myFixture.copyDirectoryToProject("stubs-$provider", "")
     }
 
     protected fun checkFile(fileName: String, text: String) {
         myFixture.configureByText(fileName, text.trimIndent())
         myFixture.checkHighlighting(true, false, false)
+    }
+
+    /** Like [checkFile], but also checks `<weak_warning>` markers. */
+    protected fun checkFileWithWeakWarnings(fileName: String, text: String) {
+        myFixture.configureByText(fileName, text.trimIndent())
+        myFixture.checkHighlighting(true, false, true)
     }
 
     protected fun addConfig(path: String, text: String) {
@@ -51,6 +69,12 @@ abstract class SpringAiInspectionTestCase : BasePlatformTestCase() {
 
         /** `<warning descr="MSG">call</warning>` */
         fun warn(method: String = "call"): String = """<warning descr="$MSG">$method</warning>"""
+
+        /** `<weak_warning descr="relies on the Anthropic default ...">call</weak_warning>` */
+        fun weakProviderDefault(provider: String, tokens: Int, method: String = "call"): String {
+            val message = LlmLintBundle.message("inspection.missing.output.limit.provider.default.message", provider, tokens.toString())
+            return """<weak_warning descr="$message">$method</weak_warning>"""
+        }
 
         val SESSION_MSG: String = LlmLintBundle.message("inspection.unbounded.memory.session.message")
 
