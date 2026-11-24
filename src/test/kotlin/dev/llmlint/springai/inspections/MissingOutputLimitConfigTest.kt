@@ -43,7 +43,7 @@ class MissingOutputLimitConfigTest : SpringAiInspectionTestCase() {
         addConfig(
             "application-prod.yaml",
             """
-            spring.ai.anthropic.chat.options.maxTokens: 1024
+            spring.ai.openai.chat.options.maxTokens: 1024
             """,
         )
         service(expectWarning = false)
@@ -53,7 +53,7 @@ class MissingOutputLimitConfigTest : SpringAiInspectionTestCase() {
         addConfig(
             "application.properties",
             """
-            spring.ai.ollama.chat.options.num-predict=256
+            spring.ai.openai.chat.options.max-tokens=256
             """,
         )
         service(expectWarning = false)

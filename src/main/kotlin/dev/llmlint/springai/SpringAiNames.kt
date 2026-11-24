@@ -10,7 +10,12 @@ object SpringAiNames {
     const val CHAT_OPTIONS_BUILDER = "org.springframework.ai.chat.prompt.ChatOptions.Builder"
     const val PROMPT = "org.springframework.ai.chat.prompt.Prompt"
 
+    /** Package of every Spring AI class; provider option builders live below it. */
+    const val SPRING_AI_PACKAGE_PREFIX = "org.springframework.ai."
+
     const val SPRING_BEAN = "org.springframework.context.annotation.Bean"
+    const val SPRING_PRIMARY = "org.springframework.context.annotation.Primary"
+    const val SPRING_QUALIFIER = "org.springframework.beans.factory.annotation.Qualifier"
 
     // Chat memory: the 1.x/2.0 API (deprecated for removal in 2.1) ...
     const val MESSAGE_WINDOW_CHAT_MEMORY_BUILDER = "org.springframework.ai.chat.memory.MessageWindowChatMemory.Builder"
@@ -22,6 +27,7 @@ object SpringAiNames {
     const val SESSION_MEMORY_ADVISOR_BUILDER = "org.springframework.ai.session.advisor.SessionMemoryAdvisor.Builder"
     const val SESSION_ADVISORS = "org.springframework.ai.session.advisor.SessionAdvisors"
     const val SESSION_ADVISORS_BUILDER = "org.springframework.ai.session.advisor.SessionAdvisors.Builder"
+    const val SESSION_TURN_ADVISOR = "org.springframework.ai.session.advisor.SessionTurnAdvisor"
     const val SESSION_TURN_ADVISOR_BUILDER = "org.springframework.ai.session.advisor.SessionTurnAdvisor.Builder"
 
     /** Context key of a per-request EventFilter (`a.param(EVENT_FILTER_CONTEXT_KEY, EventFilter.lastN(10))`). */

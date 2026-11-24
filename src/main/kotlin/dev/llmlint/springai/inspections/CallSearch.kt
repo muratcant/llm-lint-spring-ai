@@ -12,6 +12,17 @@ import org.jetbrains.uast.UVariable
 import org.jetbrains.uast.toUElementOfType
 import org.jetbrains.uast.visitor.AbstractUastVisitor
 
+/** Three-valued answer of [CallSearch]: the memory inspection only warns on a definite [NOT_SET]. */
+enum class Limit {
+    SET, NOT_SET, UNKNOWN;
+
+    infix fun or(other: Limit): Limit = when {
+        this == SET || other == SET -> SET
+        this == UNKNOWN || other == UNKNOWN -> UNKNOWN
+        else -> NOT_SET
+    }
+}
+
 /**
  * Looks for a call named one of [names] inside an expression, following local variables, fields
  * and helper methods of the project. A value of one of [opaqueTypes] that comes from outside
@@ -21,6 +32,8 @@ class CallSearch(
     private val project: Project,
     private val names: Set<String>,
     private val opaqueTypes: List<String>,
+    /** When not empty, a call named one of [names] counts only if declared in one of these classes. */
+    private val owners: Set<String> = emptySet(),
 ) {
     private val visited = HashSet<PsiElement>()
 
@@ -30,11 +43,18 @@ class CallSearch(
         var result = Limit.NOT_SET
         expression.accept(object : AbstractUastVisitor() {
             override fun visitCallExpression(node: UCallExpression): Boolean {
-                if (node.methodName in names) {
-                    result = Limit.SET
-                    return true
-                }
                 val method = node.resolve()
+                if (node.methodName in names) {
+                    val owner = method?.containingClass?.qualifiedName
+                    when {
+                        owners.isEmpty() || owner in owners -> {
+                            result = Limit.SET
+                            return true
+                        }
+                        method == null -> result = result or Limit.UNKNOWN // unresolved: can't tell
+                        else -> Unit // same name, another class: not what we look for
+                    }
+                }
                 if (method != null && UastFlow.isProjectSource(project, method) && visited.add(method)) {
                     val returned = UastFlow.returnedExpressions(method)
                     result = result or (

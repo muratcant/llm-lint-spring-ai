@@ -70,6 +70,16 @@ abstract class SpringAiInspectionTestCase : BasePlatformTestCase() {
         /** `<warning descr="MSG">call</warning>` */
         fun warn(method: String = "call"): String = """<warning descr="$MSG">$method</warning>"""
 
+        val REPLACED_MSG: String = LlmLintBundle.message("inspection.missing.output.limit.replaced.defaults.message")
+
+        /** Request options dropped the client's defaultOptions limit. */
+        fun warnReplaced(method: String = "call"): String = """<warning descr="$REPLACED_MSG">$method</warning>"""
+
+        val PARTIAL_MSG: String = LlmLintBundle.message("inspection.missing.output.limit.partial.message")
+
+        /** Some paths have a limit, some don't. */
+        fun warnPartial(method: String = "call"): String = """<warning descr="$PARTIAL_MSG">$method</warning>"""
+
         /** `<weak_warning descr="relies on the Anthropic default ...">call</weak_warning>` */
         fun weakProviderDefault(provider: String, tokens: Int, method: String = "call"): String {
             val message = LlmLintBundle.message("inspection.missing.output.limit.provider.default.message", provider, tokens.toString())
