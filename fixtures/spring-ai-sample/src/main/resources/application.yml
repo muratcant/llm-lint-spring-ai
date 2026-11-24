@@ -14,8 +14,9 @@ spring:
           model: gpt-5-mini
           # BUG (intentional): no max-tokens / max-completion-tokens here, and none in code either.
     retry:
-      # BUG (intentional): 25 attempts (Spring AI default is 10) and no backoff ceiling.
-      # With multiplier 5 the waits grow 2s, 10s, 50s, 250s, ... and every attempt re-sends the prompt.
+      # Questionable on purpose: 25 retries (Spring AI default is 10). The backoff is capped by the default
+      # backoff.max-interval of 3 minutes, so the waits are 2s, 10s, 50s, then 180s each: a failing call can keep
+      # retrying for about an hour. No inspection covers this (see docs/analysis-notes.md).
       max-attempts: 25
       backoff:
         initial-interval: 2s
