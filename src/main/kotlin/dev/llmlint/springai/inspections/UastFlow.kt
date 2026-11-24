@@ -9,16 +9,21 @@ import com.intellij.psi.search.LocalSearchScope
 import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.uast.UBinaryExpression
+import org.jetbrains.uast.UBlockExpression
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.UClass
 import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UExpression
+import org.jetbrains.uast.UIfExpression
 import org.jetbrains.uast.ULambdaExpression
 import org.jetbrains.uast.ULocalVariable
+import org.jetbrains.uast.ULoopExpression
 import org.jetbrains.uast.UMethod
 import org.jetbrains.uast.UQualifiedReferenceExpression
 import org.jetbrains.uast.UReturnExpression
 import org.jetbrains.uast.USimpleNameReferenceExpression
+import org.jetbrains.uast.USwitchClauseExpression
+import org.jetbrains.uast.UTryExpression
 import org.jetbrains.uast.UVariable
 import org.jetbrains.uast.UastBinaryOperator
 import org.jetbrains.uast.getParentOfType
@@ -84,6 +89,32 @@ object UastFlow {
             }
         }
         return calls
+    }
+
+    /** Where a statement runs relative to a later expression in the same method. */
+    enum class Placement { BEFORE, CONDITIONAL, AFTER }
+
+    /**
+     * [BEFORE] when [call] is a statement that always runs before [anchor]: it sits directly in a block that
+     * also contains [anchor], and comes first. [CONDITIONAL] when it is nested in an if, loop, switch, try or
+     * lambda that does not contain [anchor]. [AFTER] when it comes later in the text.
+     */
+    fun placement(call: UElement, anchor: PsiElement): Placement {
+        val callPsi = call.sourcePsi ?: return Placement.CONDITIONAL
+        if (callPsi.textRange.startOffset > anchor.textRange.startOffset) return Placement.AFTER
+        var parent = call.uastParent
+        while (parent != null) {
+            when (parent) {
+                is UBlockExpression -> {
+                    val block = parent.sourcePsi ?: return Placement.CONDITIONAL
+                    return if (PsiTreeUtil.isAncestor(block, anchor, false)) Placement.BEFORE else Placement.CONDITIONAL
+                }
+                is UIfExpression, is ULoopExpression, is USwitchClauseExpression, is ULambdaExpression,
+                is UTryExpression, is UMethod, is UClass -> return Placement.CONDITIONAL
+            }
+            parent = parent.uastParent
+        }
+        return Placement.CONDITIONAL
     }
 
     /** Values returned by a method body, ignoring returns of nested lambdas and classes. */

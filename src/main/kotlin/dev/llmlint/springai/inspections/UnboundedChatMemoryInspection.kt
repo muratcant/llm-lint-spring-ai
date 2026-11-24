@@ -6,6 +6,7 @@ import com.intellij.codeInspection.options.OptPane
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import com.intellij.psi.JavaPsiFacade
+import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementVisitor
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.searches.ReferencesSearch
@@ -16,11 +17,16 @@ import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.uast.UastHintedVisitorAdapter
 import dev.llmlint.springai.LlmLintBundle
 import dev.llmlint.springai.SpringAiNames
+import org.jetbrains.uast.UBinaryExpression
 import org.jetbrains.uast.UCallExpression
+import org.jetbrains.uast.UElement
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.ULambdaExpression
 import org.jetbrains.uast.ULocalVariable
+import org.jetbrains.uast.UParenthesizedExpression
+import org.jetbrains.uast.UQualifiedReferenceExpression
 import org.jetbrains.uast.getContainingUFile
+import org.jetbrains.uast.toUElement
 import org.jetbrains.uast.toUElementOfType
 import org.jetbrains.uast.visitor.AbstractUastNonRecursiveVisitor
 import org.jetbrains.uast.visitor.AbstractUastVisitor
@@ -79,11 +85,7 @@ class UnboundedChatMemoryInspection : LocalInspectionTool() {
         val factoryClass = if (isSessionAdvisors) SpringAiNames.SESSION_ADVISORS else SpringAiNames.SESSION_MEMORY_ADVISOR
         val chain = BuilderChain.collect(node.receiver, factoryClass) ?: return // can't see the whole builder
 
-        val search = CallSearch(
-            holder.project,
-            names = setOf("lastN"),
-            opaqueTypes = listOf(SpringAiNames.EVENT_FILTER, SpringAiNames.EVENT_FILTER_BUILDER, "java.util.function.Consumer"),
-        )
+        val search = windowSearch(holder.project)
         var window = Limit.NOT_SET
         for (call in chain.calls) {
             val argument = call.valueArguments.firstOrNull()
@@ -96,20 +98,28 @@ class UnboundedChatMemoryInspection : LocalInspectionTool() {
         if (window != Limit.NOT_SET) return
         if (usesPerRequestEventFilter(holder.project)) return
         // A standalone SessionMemoryAdvisor is usually paired with a SessionTurnAdvisor that compacts.
-        if (!isSessionAdvisors && fileConfiguresCompaction(node)) return
+        if (!isSessionAdvisors && fileCompactsSameService(node, chain.factoryCall)) return
 
         val anchor = chain.factoryCall.methodIdentifier?.sourcePsi ?: node.methodIdentifier?.sourcePsi ?: return
         holder.registerProblem(anchor, LlmLintBundle.message("inspection.unbounded.memory.session.message"))
     }
 
-    private fun fileConfiguresCompaction(node: UCallExpression): Boolean {
+    /**
+     * True when the file has a compacting `SessionTurnAdvisor` for the same SessionService as [memoryFactory]
+     * (`SessionMemoryAdvisor.builder(service)`). Compaction rewrites that service's history, which bounds what the
+     * memory advisor replays. When either service is not a plain reference, it is assumed to be the same one.
+     */
+    private fun fileCompactsSameService(node: UCallExpression, memoryFactory: UCallExpression): Boolean {
+        val memoryService = UastFlow.resolveReference(memoryFactory.valueArguments.firstOrNull())
         var found = false
         node.getContainingUFile()?.accept(object : AbstractUastVisitor() {
             override fun visitCallExpression(node: UCallExpression): Boolean {
                 if (node.methodName == "compactionTrigger" &&
                     UastFlow.isMethodOf(node, SpringAiNames.SESSION_TURN_ADVISOR_BUILDER)
                 ) {
-                    found = true
+                    val turnFactory = BuilderChain.collect(node.receiver, SpringAiNames.SESSION_TURN_ADVISOR)?.factoryCall
+                    val turnService = UastFlow.resolveReference(turnFactory?.valueArguments?.firstOrNull())
+                    if (memoryService == null || turnService == null || memoryService == turnService) found = true
                 }
                 return found
             }
@@ -163,15 +173,52 @@ class UnboundedChatMemoryInspection : LocalInspectionTool() {
 
         private val EVENT_FILTER_KEY_USED = Key.create<CachedValue<Boolean>>("llmlint.springai.eventFilterContextKeyUsed")
 
-        /** True when the project passes an EventFilter per request, so a builder default may be overridden. */
+        /** Looks for `EventFilter.lastN(...)` / `EventFilter.builder().lastN(...)` in an expression. */
+        private fun windowSearch(project: Project) = CallSearch(
+            project,
+            names = setOf("lastN"),
+            opaqueTypes = listOf(SpringAiNames.EVENT_FILTER, SpringAiNames.EVENT_FILTER_BUILDER, "java.util.function.Consumer"),
+            owners = setOf(SpringAiNames.EVENT_FILTER, SpringAiNames.EVENT_FILTER_BUILDER),
+        )
+
+        /**
+         * True when the project passes a windowed (or unknown) EventFilter per request, so a builder default may be
+         * overridden. A per-request `EventFilter.all()` does not count.
+         */
         fun usesPerRequestEventFilter(project: Project): Boolean =
             CachedValuesManager.getManager(project).getCachedValue(project, EVENT_FILTER_KEY_USED, {
                 val advisor = JavaPsiFacade.getInstance(project)
                     .findClass(SpringAiNames.SESSION_MEMORY_ADVISOR, GlobalSearchScope.allScope(project))
                 val field = advisor?.findFieldByName(SpringAiNames.EVENT_FILTER_CONTEXT_KEY, false)
                 val used = field != null &&
-                    ReferencesSearch.search(field, GlobalSearchScope.projectScope(project)).findFirst() != null
+                    ReferencesSearch.search(field, GlobalSearchScope.projectScope(project)).findAll()
+                        .any { windowedValueFor(project, it.element) }
                 CachedValueProvider.Result.create(used, PsiModificationTracker.MODIFICATION_COUNT)
             }, false)
+
+        /**
+         * The value passed with the context key [keyReference]: the next argument (`Map.of(KEY, filter)`,
+         * `a.param(KEY, filter)`) or the right side of Kotlin's `KEY to filter`. True when it is windowed or can't be
+         * read; false only for a value that is visibly not windowed.
+         */
+        private fun windowedValueFor(project: Project, keyReference: PsiElement): Boolean {
+            var child: UElement = keyReference.toUElement() ?: return true
+            var parent = child.uastParent
+            while (parent is UQualifiedReferenceExpression || parent is UParenthesizedExpression) {
+                child = parent
+                parent = parent.uastParent
+            }
+            val value = when (parent) {
+                is UCallExpression -> {
+                    val arguments = parent.valueArguments
+                    val index = arguments.indexOfFirst { it.sourcePsi == child.sourcePsi }
+                    if (index < 0) return true
+                    arguments.getOrNull(index + 1)
+                }
+                is UBinaryExpression -> parent.rightOperand.takeIf { parent.leftOperand.sourcePsi == child.sourcePsi }
+                else -> null
+            } ?: return true
+            return windowSearch(project).scan(value) != Limit.NOT_SET
+        }
     }
 }

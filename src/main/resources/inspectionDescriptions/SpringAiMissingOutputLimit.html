@@ -14,11 +14,26 @@ so answers can get several times longer, and so does the bill.
   <li>configuration: <code>spring.ai.&lt;provider&gt;.chat.options.max-tokens</code> in
       <code>application*.yml</code> / <code>application*.properties</code>.</li>
 </ul>
+<p>A configured limit counts only for its own provider (an Anthropic limit does not cover a call that runs on
+OpenAI) and only when it is positive: <code>0</code> and Ollama's <code>num-predict: -1</code> mean no limit.
+A limit set only in a profile (<code>application-prod.yml</code>, a document with
+<code>spring.config.activate.on-profile</code>) or through a placeholder without a default may or may not apply,
+so the call is not reported. Configuration under test roots does not count for production code.</p>
+<p>Request options replace the client's <code>defaultOptions</code>: when a request calls
+<code>.options(...)</code>, a limit set only in <code>defaultOptions(...)</code> no longer applies, and the call is
+reported. Only the last <code>.options(...)</code> of a request counts. The model's own options and the
+configuration still apply underneath.</p>
+<p>When the client or the options are chosen in a branch (<code>if</code>/<code>else</code>, <code>? :</code>,
+<code>when</code>, <code>?:</code>, several <code>return</code>s or assignments), every branch must set a limit.
+If one branch does and another does not, the call is reported as not limited on every path.</p>
 <p>Without any of these, the provider default decides. Providers with a documented default output limit
 (Anthropic: 4096 tokens) are not reported when the call can only run on them. When the classpath holds providers
 with and without a default and the code does not show which model the client uses, nothing is reported either.
 Turn on <i>Also report calls that rely on the default output limit of the provider</i> to see those calls as weak
 warnings.</p>
+<p>When the project defines several <code>ChatClient</code> (or <code>ChatModel</code>) beans, the inspection
+follows Spring's choice: <code>@Qualifier</code>, then <code>@Primary</code>, then the bean whose name matches the
+parameter or field name. If that does not settle on one bean and the beans disagree, nothing is reported.</p>
 <p>When the options come from somewhere it cannot see (a method parameter, a bean defined in a library),
 the inspection assumes they are set, to avoid false alarms.</p>
 <p>Example:</p>

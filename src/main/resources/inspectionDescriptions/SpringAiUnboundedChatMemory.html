@@ -16,8 +16,10 @@ input tokens for one user, and long histories also slow responses and can overfl
       above the threshold in the options (200 by default). Without <code>maxMessages</code> the window is 20.</li>
 </ul>
 <p>Nothing is reported when the filter comes from somewhere the inspection cannot see (a parameter), when
-the project sets <code>SessionMemoryAdvisor.EVENT_FILTER_CONTEXT_KEY</code> per request, or when the same file
-builds a <code>SessionTurnAdvisor</code> with a compaction trigger.</p>
+the project sets a windowed filter per request with <code>SessionMemoryAdvisor.EVENT_FILTER_CONTEXT_KEY</code>
+(a per-request <code>EventFilter.all()</code> does not count), or when the same file builds a
+<code>SessionTurnAdvisor</code> with a compaction trigger for the same <code>SessionService</code>.
+Only <code>lastN</code> of <code>EventFilter</code> or <code>EventFilter.Builder</code> counts as a window.</p>
 <p>Example:</p>
 <pre><code>
 // Reported
