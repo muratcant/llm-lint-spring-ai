@@ -1,11 +1,9 @@
 name: Plugin Verifier
 
-# The verifier downloads one IDE per supported major version (2025.1 – 2026.3), several GB each,
-# so it runs weekly and on demand instead of on every push.
+# The verifier downloads one IDE per supported major version (2025.1 – 2026.3), about 30 GB in total
+# once unpacked, so it only runs on demand: Actions → Plugin Verifier → Run workflow.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 4 * * 1"
 
 permissions:
   contents: read

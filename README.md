@@ -190,7 +190,8 @@ Before the first Marketplace release:
 - [ ] Plugin icon, vendor e-mail and web address in `plugin.xml`
 - [x] Run the Plugin Verifier (`./gradlew verifyPlugin`) across 2025.1 – 2026.3: *Compatible* on all six IDEs
       (2025.1.7.2, 2025.2.6, 2025.3, 2026.1, 2026.2, 2026.3) on 2026-11-24, no deprecated or internal API usage
-- [ ] CI on GitHub Actions: workflows are in `.github/workflows`, not run on GitHub yet
+- [ ] CI on GitHub Actions: workflows are in `.github/workflows` (tests on every push and pull request,
+      Plugin Verifier only when started by hand), not run on GitHub yet
 - [ ] Try the inspections on real Spring AI projects and measure false alarms and speed
 - [ ] Quick-fix: add `maxTokens(...)` to a request's existing `.options(...)` builder (adding a new `.options(...)`
       would drop the client's `defaultOptions`, so that is not offered)

@@ -1,6 +1,6 @@
 <idea-plugin>
     <id>dev.llmlint.springai</id>
-    <name>LLM Lint for Spring AI</name>
+    <name>LintBeam for Spring AI</name>
     <vendor email="[E-POSTA]" url="[WEB ADRESİ]">LLM Lint</vendor>
 
     <description><![CDATA[
