@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: spring-ai-sample
+  datasource:
+    url: jdbc:h2:mem:orders
+  sql:
+    init:
+      mode: always
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:replace-me}
+      chat:
+        options:
+          model: gpt-5-mini
+          # BUG (intentional): no max-tokens / max-completion-tokens here, and none in code either.
+    retry:
+      # BUG (intentional): 25 attempts (Spring AI default is 10) and no backoff ceiling.
+      # With multiplier 5 the waits grow 2s, 10s, 50s, 250s, ... and every attempt re-sends the prompt.
+      max-attempts: 25
+      backoff:
+        initial-interval: 2s
+        multiplier: 5

@@ -1,0 +1,10 @@
+.gradle
+.intellijPlatform
+.kotlin
+.idea
+*.iml
+build
+out
+fixtures/**/build
+fixtures/**/.gradle
+docs/screenshots/

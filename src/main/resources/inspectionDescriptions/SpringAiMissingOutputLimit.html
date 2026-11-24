@@ -1,0 +1,30 @@
+<html>
+<body>
+Reports Spring AI <code>ChatClient</code> calls (<code>.call()</code> / <code>.stream()</code>) that have no output token limit.
+<p>
+Without a limit the model decides how long the answer is. Spring AI 2.x no longer applies a small default,
+so answers can get several times longer, and so does the bill.
+</p>
+<p>The inspection stays silent when a limit is set in any of these places:</p>
+<ul>
+  <li>the request: <code>.options(ChatOptions.builder().maxTokens(512))</code>
+      (also <code>maxCompletionTokens</code>, <code>maxOutputTokens</code>, <code>numPredict</code>);</li>
+  <li>the client: <code>ChatClient.builder(model).defaultOptions(...)</code>, or the options of a
+      <code>ChatModel</code> built in code;</li>
+  <li>configuration: <code>spring.ai.&lt;provider&gt;.chat.options.max-tokens</code> in
+      <code>application*.yml</code> / <code>application*.properties</code>.</li>
+</ul>
+<p>When the options come from somewhere it cannot see (a method parameter, a bean defined in a library),
+the inspection assumes they are set, to avoid false alarms.</p>
+<p>Example:</p>
+<pre><code>
+// Reported
+chatClient.prompt().user(question).call().content();
+
+// Fine
+chatClient.prompt().user(question)
+    .options(ChatOptions.builder().maxTokens(512))
+    .call().content();
+</code></pre>
+</body>
+</html>

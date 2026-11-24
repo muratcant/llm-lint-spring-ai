@@ -1,0 +1,32 @@
+<html>
+<body>
+Reports chat memory that sends (almost) the whole conversation to the model on every call.
+<p>
+Input tokens then grow with every turn: a 50-turn support chat can send hundreds of thousands of
+input tokens for one user, and long histories also slow responses and can overflow the context window.
+</p>
+<p>Two cases are reported:</p>
+<ul>
+  <li><b>Session memory (Spring AI 2.1+)</b>: <code>SessionMemoryAdvisor.builder(..)</code> or
+      <code>SessionAdvisors.builder(..)</code> with neither a windowed event filter
+      (<code>eventFilter(EventFilter.lastN(n))</code>) nor <code>compaction(trigger, strategy)</code>.
+      Session memory replays the whole active history <i>by default</i>.</li>
+  <li><b>Message window memory (deprecated since 2.1)</b>:
+      <code>MessageWindowChatMemory.builder().maxMessages(n)</code> where <code>n</code> is a constant at or
+      above the threshold in the options (200 by default). Without <code>maxMessages</code> the window is 20.</li>
+</ul>
+<p>Nothing is reported when the filter comes from somewhere the inspection cannot see (a parameter), when
+the project sets <code>SessionMemoryAdvisor.EVENT_FILTER_CONTEXT_KEY</code> per request, or when the same file
+builds a <code>SessionTurnAdvisor</code> with a compaction trigger.</p>
+<p>Example:</p>
+<pre><code>
+// Reported
+List&lt;Advisor&gt; advisors = SessionAdvisors.builder(sessionService).build();
+
+// Fine
+List&lt;Advisor&gt; advisors = SessionAdvisors.builder(sessionService)
+    .memory(m -&gt; m.eventFilter(EventFilter.lastN(20)))
+    .build();
+</code></pre>
+</body>
+</html>
