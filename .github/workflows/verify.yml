@@ -13,28 +13,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Free disk space for the verification IDEs
-        uses: jlumbroso/free-disk-space@v1.3.1
+        uses: jlumbroso/free-disk-space@v2
         with:
-          tool-cache: false
+          preinstalled-runtimes: false
           large-packages: false
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: true
+
+      # Same as in build.yml: wait longer when Maven Central answers 429.
+      - name: Retry dependency downloads on rate limits
+        run: |
+          mkdir -p ~/.gradle
+          cat >> ~/.gradle/gradle.properties <<'EOF'
+          systemProp.org.gradle.internal.repository.max.tentatives=6
+          systemProp.org.gradle.internal.repository.initial.backoff=5000
+          EOF
 
       - name: Run Plugin Verifier
         run: ./gradlew --console=plain verifyPlugin
 
       - name: Upload verifier reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: plugin-verifier-reports
           path: build/reports/pluginVerifier
+          if-no-files-found: ignore
